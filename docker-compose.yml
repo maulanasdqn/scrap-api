@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  scrapper-api:
+    stdin_open: true
+    build:
+      context: .
+      dockerfile: "Dockerfile"
+    container_name: scrapper-api-containerized
+    env_file:
+      - .env
+    ports:
+      - "80:3000"
