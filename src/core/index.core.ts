@@ -1,3 +1,4 @@
+import { PageEmittedEvents } from "puppeteer";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { DataTypes } from "../utilities/types/index.types";
@@ -5,33 +6,36 @@ import { DataTypes } from "../utilities/types/index.types";
 const app = puppeteer;
 
 app.use(StealthPlugin());
+const AdblockerPlugin = require("puppeteer-extra-plugin-adblocker");
+puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 
 const core = async (url: string) => {
   const browser = await app.launch({
     headless: true,
-    executablePath: "/usr/bin/chromium-browser",
-    args: [
-      "--no-sandbox",
-      "--headless",
-      "--disable-gpu",
-      "--disable-dev-shm-usage",
-    ],
+    executablePath: process.env.CHROME_BIN,
+    // executablePath: "/etc/profiles/per-user/ms/bin/microsoft-edge",
+    args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
   });
 
   console.log("Accessing page....");
   const page = await browser.newPage();
 
-  await page.setViewport({ width: 1200, height: 600 });
-
-  await page.goto(url, {
-    timeout: 0,
-  });
-
-  console.log("Access url eccommerse");
+  await page.setViewport({ width: 300, height: 300 });
 
   if (url.includes("blibli.com")) {
+    await page.setRequestInterception(true);
+    page.on(PageEmittedEvents.Request, (req) => {
+      if (
+        !["document", "xhr", "fetch", "script"].includes(req.resourceType())
+      ) {
+        return req.abort();
+      }
+      req.continue();
+    });
+    await page.goto(url, {
+      waitUntil: "load",
+    });
     console.log("Request from blibli");
-    await page.waitForSelector(".product-name");
     try {
       const productName = await page.evaluate(
         () => document?.querySelector(".product-name")?.textContent
@@ -56,7 +60,18 @@ const core = async (url: string) => {
 
   if (url.includes("lazada.co.id")) {
     console.log("Request from Lazada");
-    await page.waitForSelector(".pdp-mod-product-badge-title");
+    await page.setRequestInterception(true);
+    page.on(PageEmittedEvents.Request, (req) => {
+      if (
+        !["document", "xhr", "fetch", "script"].includes(req.resourceType())
+      ) {
+        return req.abort();
+      }
+      req.continue();
+    });
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+    });
     try {
       console.log("Lazada Search product name");
       const productName = await page.evaluate(
@@ -87,7 +102,18 @@ const core = async (url: string) => {
 
   if (url.includes("tokopedia.com")) {
     console.log("Request from Tokopedia");
-    await page.waitForSelector(".css-1320e6c");
+    await page.setRequestInterception(true);
+    page.on(PageEmittedEvents.Request, (req) => {
+      if (
+        !["document", "xhr", "fetch", "script"].includes(req.resourceType())
+      ) {
+        return req.abort();
+      }
+      req.continue();
+    });
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+    });
     try {
       console.log("Tokopedia Search product name");
       const productName = await page.evaluate(
@@ -117,7 +143,18 @@ const core = async (url: string) => {
 
   if (url.includes("shopee.co.id")) {
     console.log("Request from Shopee");
-    await page.waitForSelector("._2rQP1z");
+    await page.setRequestInterception(true);
+    page.on(PageEmittedEvents.Request, (req) => {
+      if (
+        !["document", "xhr", "fetch", "script"].includes(req.resourceType())
+      ) {
+        return req.abort();
+      }
+      req.continue();
+    });
+    await page.goto(url, {
+      waitUntil: "networkidle0",
+    });
     try {
       console.log("Shopee Search product name");
       const productName = await page.evaluate(
@@ -146,23 +183,29 @@ const core = async (url: string) => {
   }
 
   if (url.includes("jakmall.com")) {
+    await page.setRequestInterception(true);
+    page.on(PageEmittedEvents.Request, (req) => {
+      if (
+        !["document", "xhr", "fetch", "script"].includes(req.resourceType())
+      ) {
+        return req.abort();
+      }
+      req.continue();
+    });
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+    });
     console.log("Request from Jakmall");
-    await page.waitForSelector(".dp__name");
     try {
-      console.log("Shopee Search product name");
       const productName = await page.evaluate(
         () => document?.querySelector(`.dp__name`)?.textContent
       );
 
-      console.log("Shopee Search product price");
       const productPrice = await page.evaluate(
         () =>
           document?.querySelector(`.dp__price.dp__price--2.format__money`)
             ?.textContent
       );
-
-      console.log(productName);
-      console.log(productPrice);
 
       let obj: DataTypes = {
         product_name: productName,

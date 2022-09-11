@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: "Dockerfile"
-    container_name: scrapper-api-containerized
+    container_name: scrapper-api
     env_file:
       - .env
     ports:
