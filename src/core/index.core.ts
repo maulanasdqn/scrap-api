@@ -2,7 +2,7 @@ import { PageEmittedEvents } from "puppeteer";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { DataTypes } from "../utilities/types/index.types";
-
+import { JSDOM } from "jsdom";
 const app = puppeteer;
 
 app.use(StealthPlugin());
@@ -12,9 +12,16 @@ puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 const core = async (url: string) => {
   const browser = await app.launch({
     headless: true,
-    executablePath: process.env.CHROME_BIN,
-    // executablePath: "/etc/profiles/per-user/ms/bin/microsoft-edge",
-    args: ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+    // executablePath: process.env.BROWSER,
+    executablePath: "/etc/profiles/per-user/ms/bin/microsoft-edge",
+    args: [
+      "--no-sandbox",
+      "--disable-dev-shm-usage",
+      "--enable-logging",
+      "--disable-gpu",
+      `--dump-dom ${url}`,
+      "--temp-profile",
+    ],
   });
 
   console.log("Accessing page....");
@@ -32,30 +39,20 @@ const core = async (url: string) => {
       }
       req.continue();
     });
-    await page.goto(url, {
-      waitUntil: "load",
-    });
+    let obj: DataTypes;
+    await page.goto(url);
     console.log("Request from blibli");
-    try {
-      const productName = await page.evaluate(
-        () => document?.querySelector(".product-name")?.textContent
-      );
-
-      const productPrice = await page.evaluate(
-        () => document?.querySelector(".product-price")?.textContent
-      );
-
-      let obj: DataTypes = {
-        product_name: productName.trim(),
-        product_price: productPrice.trim(),
-      };
-
-      await browser.close();
-
-      return obj;
-    } catch (err) {
-      console.log(err);
-    }
+    const htmlcontent = await page.content();
+    const dom = new JSDOM(htmlcontent);
+    obj = {
+      product_name:
+        dom.window?.document.querySelector(".product-name")?.textContent,
+      product_price: dom.window?.document.querySelector(
+        "#product-info > div.product-info__main > div.product-price > div.final-price > span"
+      )?.textContent,
+    };
+    await browser.close();
+    return obj;
   }
 
   if (url.includes("lazada.co.id")) {
