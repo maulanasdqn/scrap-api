@@ -2,9 +2,7 @@ import { PageEmittedEvents } from "puppeteer";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { DataTypes } from "../utilities/types/index.types";
-import { JSDOM } from "jsdom";
 const app = puppeteer;
-
 app.use(StealthPlugin());
 const AdblockerPlugin = require("puppeteer-extra-plugin-adblocker");
 puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
@@ -12,8 +10,8 @@ puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 const core = async (url: string) => {
   const browser = await app.launch({
     headless: true,
-    // executablePath: process.env.BROWSER,
-    executablePath: "/etc/profiles/per-user/ms/bin/microsoft-edge",
+    executablePath: process.env.CHROME_BIN,
+    // executablePath: "/etc/profiles/per-user/ms/bin/microsoft-edge",
     args: [
       "--no-sandbox",
       "--disable-dev-shm-usage",
@@ -30,6 +28,7 @@ const core = async (url: string) => {
   await page.setViewport({ width: 300, height: 300 });
 
   if (url.includes("blibli.com")) {
+    console.log("Request from Blibli");
     await page.setRequestInterception(true);
     page.on(PageEmittedEvents.Request, (req) => {
       if (
@@ -39,20 +38,34 @@ const core = async (url: string) => {
       }
       req.continue();
     });
-    let obj: DataTypes;
-    await page.goto(url);
-    console.log("Request from blibli");
-    const htmlcontent = await page.content();
-    const dom = new JSDOM(htmlcontent);
-    obj = {
-      product_name:
-        dom.window?.document.querySelector(".product-name")?.textContent,
-      product_price: dom.window?.document.querySelector(
-        "#product-info > div.product-info__main > div.product-price > div.final-price > span"
-      )?.textContent,
-    };
-    await browser.close();
-    return obj;
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+    });
+    try {
+      console.log("Blibli Search product name");
+      const productName = await page.evaluate(
+        () => document?.querySelector(".product-name")?.textContent
+      );
+
+      console.log("Blibli Search product price");
+      const productPrice = await page.evaluate(
+        () => document?.querySelector(".product-price")?.textContent
+      );
+
+      console.log(productName);
+      console.log(productPrice);
+
+      let obj: DataTypes = {
+        product_name: productName,
+        product_price: productPrice,
+      };
+
+      await browser.close();
+
+      return obj;
+    } catch (err) {
+      console.log(err);
+    }
   }
 
   if (url.includes("lazada.co.id")) {
